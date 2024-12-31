@@ -45,9 +45,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Weapon")
 	bool AttachWeapon(AAsstTencentCharacter* TargetCharacter);
 
-	/** Make the weapon Fire a Projectile */
 	UFUNCTION(BlueprintCallable, Category="Weapon")
+	void StartFire();
+	
+	/** Make the weapon Fire a Projectile */
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category="Weapon")
 	void Fire();
+	void Fire_Implementation();
 
 protected:
 	/** Ends gameplay for this component. */
