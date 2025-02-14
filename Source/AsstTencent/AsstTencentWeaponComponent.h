@@ -60,5 +60,5 @@ protected:
 
 private:
 	/** The Character holding this weapon*/
-	AAsstTencentCharacter* Character;
+	TWeakObjectPtr<AAsstTencentCharacter> CharacterPtr;
 };

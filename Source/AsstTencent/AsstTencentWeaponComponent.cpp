@@ -14,7 +14,11 @@
 #include "Engine/World.h"
 
 // Sets default values for this component's properties
-UAsstTencentWeaponComponent::UAsstTencentWeaponComponent()
+UAsstTencentWeaponComponent::UAsstTencentWeaponComponent():
+	FireSound(nullptr),
+	FireAnimation(nullptr),
+	FireMappingContext(nullptr),
+	FireAction(nullptr)
 {
 	// Default offset from the character location for projectiles to spawn
 	MuzzleOffset = FVector(100.0f, 0.0f, 10.0f);
@@ -22,6 +26,9 @@ UAsstTencentWeaponComponent::UAsstTencentWeaponComponent()
 
 void UAsstTencentWeaponComponent::StartFire()
 {
+	const AAsstTencentCharacter* Character = CharacterPtr.Get();
+	if (!Character) return;
+
 	// Try and play the sound if specified
 	if (FireSound != nullptr)
 	{
@@ -32,8 +39,7 @@ void UAsstTencentWeaponComponent::StartFire()
 	if (FireAnimation != nullptr)
 	{
 		// Get the animation object for the arms mesh
-		UAnimInstance* AnimInstance = Character->GetMesh1P()->GetAnimInstance();
-		if (AnimInstance != nullptr)
+		if (UAnimInstance* AnimInstance = Character->GetMesh1P()->GetAnimInstance())
 		{
 			AnimInstance->Montage_Play(FireAnimation, 1.f);
 		}
@@ -43,9 +49,11 @@ void UAsstTencentWeaponComponent::StartFire()
 }
 
 
-
 void UAsstTencentWeaponComponent::Fire_Implementation()
 {
+	AAsstTencentCharacter* Character = CharacterPtr.Get();
+	if (!Character) return;
+
 	if (Character == nullptr || Character->GetController() == nullptr)
 	{
 		return;
@@ -54,10 +62,9 @@ void UAsstTencentWeaponComponent::Fire_Implementation()
 	// Try and fire a projectile
 	if (ProjectileClass != nullptr)
 	{
-		UWorld* const World = GetWorld();
-		if (World != nullptr)
+		if (UWorld* const World = GetWorld())
 		{
-			APlayerController* PlayerController = Cast<APlayerController>(Character->GetController());
+			const APlayerController* PlayerController = Cast<APlayerController>(Character->GetController());
 			const FRotator SpawnRotation = PlayerController->PlayerCameraManager->GetCameraRotation();
 
 			// MuzzleOffset is in camera space, so transform it to world space before offsetting from the character location to find the final muzzle position
@@ -68,17 +75,18 @@ void UAsstTencentWeaponComponent::Fire_Implementation()
 			ActorSpawnParams.SpawnCollisionHandlingOverride =
 				ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
 			ActorSpawnParams.Instigator = Character;
-			
+
 			// Spawn the projectile at the muzzle
-			AAsstTencentProjectile* Projectile = World->SpawnActor<AAsstTencentProjectile>(
-				ProjectileClass, SpawnLocation, SpawnRotation, ActorSpawnParams);
+			World->SpawnActor<AAsstTencentProjectile>(ProjectileClass, SpawnLocation, SpawnRotation, ActorSpawnParams);
 		}
 	}
 }
 
 bool UAsstTencentWeaponComponent::AttachWeapon(AAsstTencentCharacter* TargetCharacter)
 {
-	Character = TargetCharacter;
+	CharacterPtr = TargetCharacter;
+	AAsstTencentCharacter* Character = CharacterPtr.Get();
+	if (!Character) return false;
 
 	// Check that the character is valid, and has no weapon component yet
 	if (Character == nullptr || Character->GetInstanceComponents().FindItemByClass<UAsstTencentWeaponComponent>())
@@ -89,11 +97,11 @@ bool UAsstTencentWeaponComponent::AttachWeapon(AAsstTencentCharacter* TargetChar
 		Owner->SetOwner(Character);
 
 	// Attach the weapon to the First Person Character
-	FAttachmentTransformRules AttachmentRules(EAttachmentRule::SnapToTarget, true);
+	const FAttachmentTransformRules AttachmentRules(EAttachmentRule::SnapToTarget, true);
 	AttachToComponent(Character->GetMesh1P(), AttachmentRules, FName(TEXT("GripPoint")));
 
 	// Set up action bindings
-	if (APlayerController* PlayerController = Cast<APlayerController>(Character->GetController()))
+	if (const APlayerController* PlayerController = Cast<APlayerController>(Character->GetController()))
 	{
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<
 			UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
@@ -117,10 +125,10 @@ bool UAsstTencentWeaponComponent::AttachWeapon(AAsstTencentCharacter* TargetChar
 void UAsstTencentWeaponComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	// ensure we have a character owner
-	if (Character != nullptr)
+	if (const AAsstTencentCharacter* Character = CharacterPtr.Get())
 	{
 		// remove the input mapping context from the Player Controller
-		if (APlayerController* PlayerController = Cast<APlayerController>(Character->GetController()))
+		if (const APlayerController* PlayerController = Cast<APlayerController>(Character->GetController()))
 		{
 			if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<
 				UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
